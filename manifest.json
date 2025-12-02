@@ -2,7 +2,7 @@
   "name": "circle_game",
   "short_name": "circle_game",
   "description": "Toque no círculo.",
-  "start_url": "./index.html",
+  "start_url": "https://gabrielsgura.github.io/circle_game/index.html",
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#3498db",
