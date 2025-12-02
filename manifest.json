@@ -11,19 +11,19 @@
     {
       "src": "/circle_game/screenshots/1.jpg",
       "sizes": "1080x1920",
-      "type": "image/jpg",
+      "type": "image/jpeg",
       "form-factor": "narrow"
     },
     {
       "src": "/circle_game/screenshots/2.jpg",
       "sizes": "1080x1920",
-      "type": "image/jpg",
+      "type": "image/jpeg",
       "form-factor": "narrow"
     },
     {
       "src": "/circle_game/screenshots/3.jpg",
       "sizes": "1080x1920",
-      "type": "image/jpg",
+      "type": "image/jpeg",
       "form-factor": "narrow"
     }
   ],
