@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Desafio do Círculo com Pausa</title>
+    <style>
+        :root {
+            --bg-color: #3498db; 
+            --circle-color: #e74c3c; 
+            --loader-color: #27ae60;
+        }
+        
+        body {
+            -webkit-tap-highlight-color: transparent; 
+            background-color: var(--bg-color); 
+            margin: 0;
+            overflow: hidden;
+            height: 100vh; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.5s ease; 
+            cursor: pointer; 
+            font-family: 'Inter', sans-serif;
+        }
+
+        .no-transition {
+            transition: none !important;
+        }
+
+        #circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--circle-color); 
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.05s linear, height 0.05s linear; 
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+
+        #reset-count {
+            color: white; 
+            font-size: 18px;
+            font-weight: 700;
+            pointer-events: none; 
+        }
+
+        #message-overlay {
+            position: absolute;
+            color: #2c3e50; 
+            font-size: 24px;
+            text-align: center;
+            padding: 20px 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            opacity: 0; 
+            pointer-events: none; 
+            transition: opacity 0.3s ease;
+            z-index: 10;
+            line-height: 1.4;
+            max-width: 80%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #message-overlay.visible {
+            opacity: 1;
+            pointer-events: auto; 
+        }
+
+        /* --- Loader Progress Bar --- */
+        #loader-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+
+        #loader-bar {
+            height: 100%;
+            width: 0;
+            background-color: var(--loader-color);
+            transition: none;
+        }
+
+        @keyframes fill-progress {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        #loader-bar.loading {
+            animation: fill-progress 2s linear forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="circle">
+        <span id="reset-count">0</span>
+    </div>
+
+    <div id="message-overlay">
+        <div id="loader-bar-container">
+            <div id="loader-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        const circle = document.getElementById('circle');
+        const countDisplay = document.getElementById('reset-count');
+        const body = document.body;
+        const messageOverlay = document.getElementById('message-overlay');
+        const loaderBarContainer = document.getElementById('loader-bar-container');
+        const loaderBar = document.getElementById('loader-bar');
+
+        // --- Configuração ---
+        const INITIAL_SIZE = 100;
+        const SIZE_INCREMENT = 100;
+        const INITIAL_DECAY_RATE = 1;
+        // ADJUSTED: Slower shrinking increase
+        const DECAY_INCREASE_FACTOR = 0.4; 
+        const DECAY_INTERVAL_MS = 30;
+        
+        const INACTIVITY_TIMEOUT_MS = 1;
+        // ADJUSTED: Max resets set to 50
+        const MAX_RESET_COUNT = 50; 
+        const CHECKPOINT_LEVELS = [5, 10, 15, 20, 25, 30, 35, 40, 45];
+        const CHECKPOINT_MESSAGES = {
+            5: "Estamos apenas começando.",
+            10: "Reparou que o círculo diminui?",
+            15: "Já deu pra aquecer, nao pare por aqui.",
+            20: "Alguém aqui jogou bastante Mario Party pelo jeito.",
+            25: "Dedos rápidos, mas esse é um jogo mental.",
+            30: "Estou impressionado, temos um potencial guitarrista entre nós.",
+            35: "Se essa for sua primeira tentativa, agora começa a ficar difícil.",
+            40: "Poucos chegam até aqui, falta pouco.",
+            45: "Nos vemos do outro lado. Boa sorte."
+        };
+        const PAUSE_DURATION_MS = 2000; 
+
+        let currentSize = INITIAL_SIZE;
+        let maxDimension = 0; 
+        let decayInterval = null;
+        let decayRate = INITIAL_DECAY_RATE; 
+        let tapTimeout = null;
+        let resetCounter = 0; 
+        let gameIsRunning = false;
+        let isPaused = false; 
+
+        // --- Funções Auxiliares ---
+
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function calculateMaxDimension() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            maxDimension = Math.max(viewportWidth, viewportHeight) * 1.05;
+            
+            if (currentSize > maxDimension * 2) {
+                 resetAnimation(circle.style.backgroundColor);
+            }
+        }
+        
+        function hideMessage() {
+            messageOverlay.classList.remove('visible');
+            loaderBarContainer.style.display = 'none';
+        }
+
+        function showMessage(text, showLoader = false) {
+            messageOverlay.innerHTML = `<span class="message-text">${text}</span>`;
+            
+            if (showLoader) {
+                messageOverlay.appendChild(loaderBarContainer);
+                loaderBarContainer.style.display = 'block';
+                
+                loaderBar.style.width = '0%';
+                loaderBar.classList.remove('loading');
+                void loaderBar.offsetWidth; 
+                loaderBar.classList.add('loading');
+            } else {
+                loaderBarContainer.style.display = 'none';
+            }
+
+            messageOverlay.classList.add('visible');
+        }
+
+        // --- Lógica de Encolhimento (Decay) ---
+
+        function shrinkCircle() {
+            if (!gameIsRunning) return; 
+
+            if (currentSize > 0) {
+                currentSize = Math.max(0, currentSize - decayRate);
+                
+                circle.style.width = `${currentSize}px`;
+                circle.style.height = `${currentSize}px`;
+                
+                if (currentSize === 0) {
+                    gameOver(true);
+                }
+            }
+        }
+
+        function startDecay() {
+            if (gameIsRunning) { 
+                stopDecay();
+                decayInterval = setInterval(shrinkCircle, DECAY_INTERVAL_MS);
+            }
+        }
+
+        function stopDecay() {
+            if (decayInterval !== null) {
+                clearInterval(decayInterval);
+                decayInterval = null;
+            }
+        }
+        
+        // --- Lógica de Derrota e Checkpoint ---
+
+        function resetGame() {
+            window.location.reload(); 
+        }
+
+        function gameOver(shrunk) {
+            stopDecay();
+            body.removeEventListener('click', handleTap);
+            gameIsRunning = false;
+            isPaused = true; 
+
+            circle.style.display = 'none';
+            countDisplay.style.display = 'none';
+
+            let finalMessage;
+            let messageBase;
+
+            if (shrunk) {
+                messageBase = `Que pena, você chegou no nível ${resetCounter}. Tente novamente.`;
+            } else {
+                messageBase = "Parabéns, tá com tempo sobrando, hein.";
+            }
+
+            showMessage(messageBase, true);
+
+            setTimeout(() => {
+                finalMessage = messageBase + `<br><br><span style="font-size: 18px; color: #2c3e50;">Clique para reiniciar.</span>`;
+                
+                messageOverlay.querySelector('.message-text').innerHTML = finalMessage; 
+                loaderBarContainer.style.display = 'none'; 
+                
+                body.addEventListener('click', resetGame, { once: true });
+                isPaused = false; 
+                
+            }, PAUSE_DURATION_MS);
+        }
+
+        function resumeAfterPause() {
+            hideMessage();
+            body.removeEventListener('click', resumeAfterPause, { once: true });
+            
+            gameIsRunning = true; 
+            isPaused = false; 
+        }
+
+
+        function handleCheckpoint() {
+            gameIsRunning = false; 
+            isPaused = true; 
+            
+            const messageText = `Checkpoint Nível ${resetCounter}: ${CHECKPOINT_MESSAGES[resetCounter]}`;
+            const fullMessage = messageText + `<br><br><span style="font-size: 18px;">Aguarde...</span>`;
+
+            showMessage(fullMessage, true); 
+
+            setTimeout(() => {
+                messageOverlay.querySelector('.message-text').innerHTML = messageText + `<br><br><span style="font-size: 18px; color: #2c3e50;">Clique para continuar.</span>`;
+                loaderBarContainer.style.display = 'none'; 
+                
+                body.addEventListener('click', resumeAfterPause, { once: true });
+            }, PAUSE_DURATION_MS);
+        }
+
+
+        // --- Reset e Manipulador de Toques ---
+
+        function resetAnimation(finalCircleColor) {
+            
+            resetCounter++;
+            
+            if (resetCounter >= MAX_RESET_COUNT) {
+                gameOver(false); 
+                return;
+            }
+
+            decayRate += DECAY_INCREASE_FACTOR;
+            countDisplay.textContent = resetCounter;
+
+            stopDecay();
+
+            body.classList.add('no-transition');
+            circle.classList.add('no-transition');
+
+            body.style.backgroundColor = finalCircleColor;
+            circle.style.backgroundColor = getRandomColor();
+            
+            currentSize = INITIAL_SIZE;
+            circle.style.width = `${INITIAL_SIZE}px`;
+            circle.style.height = `${INITIAL_SIZE}px`;
+            
+            setTimeout(() => {
+                body.classList.remove('no-transition');
+                circle.classList.remove('no-transition');
+            }, 0); 
+            
+            if (CHECKPOINT_LEVELS.includes(resetCounter)) {
+                handleCheckpoint();
+            } else {
+                startDecay();
+            }
+        }
+
+        function handleTap() {
+            
+            if (isPaused) {
+                return; 
+            }
+
+            if (!gameIsRunning) {
+                gameIsRunning = true;
+                tapTimeout = setTimeout(startDecay, INACTIVITY_TIMEOUT_MS);
+            }
+            
+            stopDecay();
+            clearTimeout(tapTimeout);
+
+            if (!circle.style.backgroundColor) {
+                circle.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--circle-color') || '#e74c3c';
+            }
+
+            // Check for Reset Condition
+            if (currentSize + SIZE_INCREMENT >= maxDimension) { 
+                const finalCircleColor = circle.style.backgroundColor; 
+                circle.style.width = `${maxDimension}px`;
+                circle.style.height = `${maxDimension}px`;
+                resetAnimation(finalCircleColor);
+                
+            } else {
+                // Increase Size
+                currentSize += SIZE_INCREMENT;
+                circle.style.width = `${currentSize}px`;
+                circle.style.height = `${currentSize}px`;
+                
+                // Start Decay Timer
+                tapTimeout = setTimeout(startDecay, INACTIVITY_TIMEOUT_MS);
+            }
+        }
+        
+        // --- Inicialização ---
+
+        function initializeGame() {
+            calculateMaxDimension();
+            window.addEventListener('resize', calculateMaxDimension);
+            
+            body.addEventListener('click', handleTap);
+            
+            circle.style.width = `${INITIAL_SIZE}px`;
+            circle.style.height = `${INITIAL_SIZE}px`;
+        }
+
+        initializeGame();
+
+    </script>
+</body>
+</html>
