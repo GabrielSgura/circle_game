@@ -7,6 +7,26 @@
   "orientation": "portrait",
   "background_color": "#3498db",
   "theme_color": "#e74c3c",
+  "screenshots" : [
+    {
+      "src": "/circle_game/screenshots/1.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpg",
+      "form-factor": "narrow",
+    },
+    {
+      "src": "/circle_game/screenshots/2.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpg",
+      "form-factor": "narrow",
+    },
+    {
+      "src": "/circle_game/screenshots/3.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpg",
+      "form-factor": "narrow",
+    }
+  ],
   "icons": [
     {
       "src": "/circle_game/icons/android-launchericon-512-512.png",
